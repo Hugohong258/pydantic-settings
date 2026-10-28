@@ -5781,3 +5781,29 @@ def test_nested_dict_env_value_preserves_container_type(env, value_type, value):
 
     env.set('APP_VALUES__X', json.dumps(value))
     assert Settings().values == {'x': value}
+
+
+@pytest.mark.parametrize(
+    'validation_alias,key',
+    [
+        (None, 'other'),
+        (None, 'name'),
+        (None, 'count'),
+        ('label', 'other'),
+        ('label', 'name'),
+        ('label', 'label'),
+        ('label', 'count'),
+    ],
+)
+def test_nested_dict_env_model_value_key_collision(env, validation_alias, key):
+    class Value(BaseModel):
+        name: str = Field(validation_alias=validation_alias)
+        count: int
+
+    class Settings(BaseSettings):
+        model_config = SettingsConfigDict(env_prefix='APP_', env_nested_delimiter='__')
+        values: dict[str, Value]
+
+    value = {validation_alias or 'name': 'ok', 'count': 7}
+    env.set(f'APP_VALUES__{key.upper()}', json.dumps(value))
+    assert Settings().values == {key: Value.model_validate(value)}
